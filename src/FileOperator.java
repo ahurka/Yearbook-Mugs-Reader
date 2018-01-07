@@ -76,6 +76,9 @@ public class FileOperator {
    * will be created, otherwise the existing one will be used.
    */
   public FileOperator() {
+    folderPath = folderPath.substring(0, folderPath.lastIndexOf('\\'));
+    System.out.println("Running folder: " + folderPath);
+
     int fileSourceNumber;
     if (availableInputFiles == null) {
       // This FileOperator is the first instantiated in this run of the program
@@ -226,18 +229,19 @@ public class FileOperator {
    * @return The contents of the specified file
    */
   public String readIndex(String indexPath) throws IOException {
-    RandomAccessFile file;
+    RandomAccessFile index;
 
-    file = new RandomAccessFile(indexPath, "r");
+    File indexFile = new File(folderPath, indexPath);
+    index = new RandomAccessFile(indexFile, "r");
     byte[] bytes = new byte[4096];
     String fileContents = "";
 
-    for (int i = file.read(bytes); i > 0; i = file.read(bytes)) {
+    for (int i = index.read(bytes); i > 0; i = index.read(bytes)) {
       String newData = new String(bytes);
       fileContents += newData.substring(0, i);
     }
 
-    file.close();
+    index.close();
     return fileContents;
   }
 }

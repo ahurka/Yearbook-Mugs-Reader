@@ -174,7 +174,7 @@ public class IndexResetPane extends Observable implements ActionListener, MugsEv
       // Represents a request to change source file.
       setChanged();
       
-      int requestStamp;
+      byte requestStamp;
       /* This stamp communicates to observers whether the user wants the file to use
          manual or automatic ordering. */
       if (setManual.isSelected()) {
@@ -184,7 +184,7 @@ public class IndexResetPane extends Observable implements ActionListener, MugsEv
       }
 
       // The request is packaged into a RequestEvent with the chosen stamp.
-      notifyObservers(new RequestEvent(requestStamp, fileTextInput.getText()));
+      notifyObservers(new RequestEvent(requestStamp, null, fileTextInput.getText()));
     } else if (buttonPressed == instructions) {
       // Create and set an InstructionsFrame, or refocus an existing one, which operates on its own.
       InstructionsFrame intr = InstructionsFrame.getFrame();

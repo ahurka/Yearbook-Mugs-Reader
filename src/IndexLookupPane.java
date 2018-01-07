@@ -1,7 +1,5 @@
 import java.awt.Font;
 import java.awt.GridLayout;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
 import java.awt.event.FocusListener;
 
 import javax.swing.BoundedRangeModel;
@@ -18,18 +16,16 @@ import javax.swing.text.JTextComponent;
  * output space on the right is not editable and displays output based on processing input
  * from the input field.
  * 
- * <p>This superclass provides implementations for any functions, including management of
+ * <p>This superclass provides implementations for many functions, including management of
  * the input and output text fields, and responses to any changes that occur to any component.
- * The subclass must provide the exact text component type to use, as well as what its
- * properties are. Subclasses must provide an instance of a text field, with options customized
- * to the subclass, that is accessible through the <code>getTextComponent</code>. Subclasses
- * are not responsible for any behaviour.
+ * The subclass must provide the exact text component type to use, as well as specify the
+ * component's properties. Subclasses must provide an instance of a text field, with options
+ * customized to the subclass, that is accessible through <code>getTextComponent</code>
  * 
  * <p>This class is an instance of <code>JPanel</code>, so it can be directly placed in a frame
  * without having to retrieve a central pane through a method.
  */
-public abstract class IndexLookupPane extends JPanel implements DocumentListener,
-                                                                ComponentListener {
+public abstract class IndexLookupPane extends JPanel implements DocumentListener {
 
   /**
    * An identifier used to serialize instances of class <code>IndexLookupPane</code>.
@@ -67,6 +63,12 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
    * desynchronized to operate on their own.
    */
   private BoundedRangeModel backupScrollModel;
+  
+  /**
+   * If <code>true</code>, no overridden event handler method will trigger,
+   * allowing action events to be fired without provoking unwanted response.
+   */
+  private boolean activeSuppress = false;
 
   /**
    * Initialize a new <code>IndexLookupPane</code> and set up all components inside.
@@ -83,17 +85,18 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
                                     JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
     outputScroller = new JScrollPane(outputField, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
                                      JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-    // Listeners cause this panel to be notified when scroll bar synchronization should be changed.
-    inputField.getDocument().addDocumentListener(this);
-    outputScroller.getVerticalScrollBar().addComponentListener(this);
     
     // Save a copy of the output scroll pane's model to restore when scroll bars are desynchronized.
     backupScrollModel = outputScroller.getVerticalScrollBar().getModel();
+
+    // Listeners cause this panel to be notified when scroll bar synchronization should be changed.
+    inputField.getDocument().addDocumentListener(this);
     
     JSplitPane wholePane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, inputScroller,
                                           outputScroller);
     wholePane.setResizeWeight(0.35);
     add(wholePane);
+    activeSuppress = false;
   }
 
   /**
@@ -114,8 +117,8 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
   public void matchScrollBars() {
     /* Have the input and output scroll bars use the same model; using either bar will update
        the model, which will cause both bars to move. */
-    BoundedRangeModel sharedScrollBar = outputScroller.getVerticalScrollBar().getModel();
-    inputScroller.getVerticalScrollBar().setModel(sharedScrollBar);
+    BoundedRangeModel sharedScrollBar = inputScroller.getVerticalScrollBar().getModel();
+    outputScroller.getVerticalScrollBar().setModel(sharedScrollBar);
   }
 
   /**
@@ -123,32 +126,15 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
    * making them move independently of each other.
    */
   private void unmatchScrollBars() {
+    // Create a clone of the input scroll bar's model, which gets inherited by
+    // the output scroll bar. This means the output scroll bar will start in the
+    // same location as it previously was.
+    BoundedRangeModel orig = outputScroller.getVerticalScrollBar().getModel();
+    backupScrollModel.setMaximum(orig.getMaximum());
+    backupScrollModel.setValue(orig.getValue());
+
     outputScroller.getVerticalScrollBar().setModel(backupScrollModel);
   } 
-
-  @Override
-  public void componentMoved(ComponentEvent evt) {
-    /* This event is only triggered when the scroll bars are repositioned by a system
-       other than the user. This corresponds to the text fields updating when output
-       is returned, which is when scroll bars can be matched. Otherwise text fields may
-       be different heights. */
-    matchScrollBars();
-  }
-
-  @Override
-  public void componentHidden(ComponentEvent evt) {
-    // No response is necessary for this event.
-  }
-
-  @Override
-  public void componentResized(ComponentEvent evt) {
-    // No response is necessary for this event.
-  }
-
-  @Override
-  public void componentShown(ComponentEvent evt) {
-    // No response is necessary for this event.
-  }
 
   /**
    * Adds the specified focus listener to receive focus events from this component
@@ -163,20 +149,24 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
   public void changedUpdate(DocumentEvent evt) {
     // No response is necessary for this event.
   }
-  
+
   @Override
   public void insertUpdate(DocumentEvent evt) {
-    /* Document update are triggered when the input text field is modified by the user.
-       When this happens, the input and output text fields may become different heights,
-       which makes synchronized scroll bars cut off lines of text in the shorter text field.
-       Scroll bars are desynchronized on these events to prevent cut off text. */
-    unmatchScrollBars();
+    if (!activeSuppress) {
+      /* Document update are triggered when the input text field is modified by the user.
+         When this happens, the input and output text fields may become different heights,
+         which makes synchronized scroll bars cut off lines of text in the shorter text field.
+         Scroll bars are desynchronized on these events to prevent cut off text. */
+      unmatchScrollBars();
+    }
   }
   
   @Override
   public void removeUpdate(DocumentEvent evt) {
-    // Same response as for insertions. See method body above.
-    insertUpdate(evt);
+    if (!activeSuppress) {
+      // Same response as for insertions. See method body above.
+      unmatchScrollBars();
+    }
   }
 
   /**
@@ -189,8 +179,7 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
   }
 
   /**
-   * Display a set of input and output <code>Strings</code> from the specified array.
-   * 
+   * Display a set of input and output strings from the input array.
    * 
    * <p>The first nested array contains the input, reformatted to be line-divided with no
    * commas or other separating values. All features other than names are cleared out.
@@ -208,10 +197,74 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
    *        The input and output of a lookup request.
    */
   public void display(String[][] results) {
-    // Input text must be replaced in case the original input was not line-separated (eg. clubs)
-    String formattedInput = String.join("\n", results[0]);
-    inputField.setText(formattedInput);
-    String output = String.join("\n", results[1]);
-    outputField.setText(output);
+    String formattedInput;
+    String output;
+    if (results == null) {
+      // Default to setting text to blank if null results are received.
+      formattedInput = "";
+      output = "";
+    } else {
+      // Input text must be replaced in case names from the original
+      // input were changed.
+      String[] parsedResults = getDisplayText(results);
+      formattedInput = parsedResults[0];
+      output = parsedResults[1];
+    }
+    
+    // Put the input and output of the recent query on the text panes.
+    displayQueryResults(formattedInput, output);
+  }
+  
+  /**
+   * Display the string parameters on the input and output text spaces,
+   * and reset the text panels to the desired behaviour for looking at
+   * query results. In particular, the scroll bars are scrolled to the top
+   * whenever new text is displayed, and then the input and output panels'
+   * scroll bars are matched such that they move together.
+   * 
+   * For the scroll bars to be able to move together as expected, the input
+   * and output string parameters must have the same number of newlines.
+   * Otherwise the end of one string may be partially cut off.
+   * 
+   * @param in
+   *        Text to be displayed in the input text space
+   * @param out
+   *        Text to be displayed in the output text space
+   */
+  private void displayQueryResults(String in, String out) {
+    // Prevent scroll bars from being unmatched upon modification of text
+    // in the text spaces due to document listeners.
+    activeSuppress = true;
+    
+    // Display the text.
+    inputField.setText(in);
+    outputField.setText(out);
+    // Move scroll bars to the top of their respective spaces.
+    inputField.setCaretPosition(0);
+    outputField.setCaretPosition(0);
+    
+    matchScrollBars();
+    
+    // Allow document listeners to resume listening to any further changes.
+    activeSuppress = false;
+  }
+  
+  /**
+   * Prepare the output from a query for display on the screen. This means
+   * compressing the results into single strings that can be written to a text
+   * component. In addition to this, subclasses may override this method to
+   * add a header to the output or to customize how the results are displayed.
+   * 
+   * @param results
+   *        Raw output from a search query
+   * @return The same output prepared for direct display on the text panels
+   */
+  protected String[] getDisplayText(String[][] results) {
+    String[] out = new String[2];
+    // Convert multiple array elements into a single, newline-separated string.
+    out[0] = String.join("\n", results[0]);
+    out[1] = String.join("\n", results[1]);
+    
+    return out;
   }
 }

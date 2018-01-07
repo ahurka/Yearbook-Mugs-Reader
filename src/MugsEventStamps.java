@@ -4,27 +4,18 @@
  */
 public interface MugsEventStamps {
   /**
-   * A stamp signifying a request to spellcheck a set of names.
+   * A stamp signifying any kind of lookup operation. Additional parameters
+   * and control must be set separately.
    */
-  final int spellcheckStamp = 100;
-
-  /**
-   * A stamp signifying a request to search for the grades of a set of names.
-   */
-  final int gradeLookupStamp = 200;
-
-  /**
-   * A stamp signifying a request to search for the homeforms of a set of names.
-   */
-  final int homeformLookupStamp = 300;
+  final byte lookupStamp = 10;
 
   /**
    * A stamp signifying that an index file should be set to manual priority.
    */
-  final int setManualPriority = 500;
+  final byte setManualPriority = 50;
 
   /**
    * A stamp signifying that an index file should be set to automatic ordering.
    */
-  final int setAutomaticPriority = 1000;
+  final byte setAutomaticPriority = 100;
 }

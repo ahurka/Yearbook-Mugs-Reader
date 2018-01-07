@@ -22,6 +22,10 @@ import javax.swing.JTextArea;
  * output. When the input field is modified, it will no longer perfectly match with
  * the output field and the two scroll bars will be desynchronized and operate on
  * their own.
+ * 
+ * <p>For searches on many names, <code>MassLookupPane</code> will count output and
+ * notify the user how many lines of output there are. This helps the user to identify
+ * the size of the output when it is not the same size as the input.
  */
 public class MassLookupPane extends IndexLookupPane {
 
@@ -36,5 +40,25 @@ public class MassLookupPane extends IndexLookupPane {
     inputField.setRows(18);
     inputField.setFont(textDisplayFont);
     return inputField;
+  }
+  
+  @Override
+  protected String[] getDisplayText(String[][] results) {
+    // This subclass displays text in the same was as the superclass, except
+    // with a two-line header to show how many results were received.
+    String[] out = super.getDisplayText(results);
+    // Input side two empty lines for its side of the header.
+    out[0] = "\n\n" + out[0];
+    String header = "Showing " + results[1].length + " result";
+    
+    if (results[1].length != 1) {
+      // Pluralize 'results' for any number except for 1 result.
+      header += "s";
+    }
+    
+    // Output side receives the output line count for its side of the header.
+    out[1] = header + ":\n\n" + out[1];
+    
+    return out;
   }
 }

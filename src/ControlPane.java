@@ -1,14 +1,18 @@
-import java.awt.GridLayout;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.util.List;
 import java.util.Observable;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
+import javax.swing.SpringLayout;
 
 /**
  * A panel containing the main user-interaction portion of the system, corresponding
@@ -19,17 +23,24 @@ import javax.swing.JPanel;
  * Two components are text input and output panels, and the other contains buttons.
  * One of the text panels is a single row designed for looking up information about
  * a single person. The multiple row text panel is for lookup on any number of names,
- * which can be flexibly formatted. The buttons trigger lookup operations on whichever
- * of the text panels was last highlighted.
+ * which can be flexibly formatted. The buttons mainly perform operations on the
+ * contents of the text panes, and also provide options to customize searches.
  * 
- * <p>After being retrieved, information is displayed in output panels, next to the
- * corresponding input text panels. So any single name lookup requests made from the
- * single row text panel would have their output displayed on the adjacent single
- * row output text panel. After the output is displayed in the appropriate lookup pane's
- * output field, the input field remains selected. Further requests for different
- * information can be made on the same set of input without having to select the
- * input text field again. Doing so will replace the previous request's output with
- * that of the new request.
+ * <p>After a search is performed and results are available, the results are displayed
+ * in output spaces to the right of the corresponding input text spaces. So any single
+ * name lookup requests made from the single-row text panel would have their output
+ * displayed on the adjacent single-row output text panel. After the output is displayed
+ * in the appropriate lookup pane's output field, the input field remains selected.
+ * Further requests for different information can be made on the same set of input
+ * without having to select the input text field again. Doing so will replace the
+ * previous request's output with that of the new request.
+ * 
+ * Several buttons are provided as parameters to each search. Firstly, two buttons
+ * at the bottom of the control pane allow the user to specify which information
+ * should be displayed from the search. More than one of the two options (grade and
+ * homeform) can be selected, and both will be displayed. If neither of the buttons
+ * is selected, index number will be displayed instead. An additional parameters
+ * button opens a window with further options to specify search output.
  * 
  * <p>This class is not an actual implementation of <code>JPanel</code>, and so any
  * class wanting to use a panel of this type must retrieve the working panel using the
@@ -43,15 +54,14 @@ public class ControlPane extends Observable implements ActionListener, FocusList
   /**
    * The panel containing all elements of the controller pane.
    * Contains text fields for single and multiple name lookup, and a panel of buttons
-   * that trigger lookup requests.
+   * for searches and maintenance.
    */
   private JPanel wholePane;
 
   /**
    * The panel responsible for collecting and displaying the results of single name
    * lookup requests. Once results arrive the input text field will not be changed and
-   * will remain selected; clicking another lookup button will cause the output field
-   * to be updated again with the requested information.
+   * will remain selected; performing another search will use the same input.
    * 
    * <p>To look up information using the single lookup pane, it must have been selected
    * (clicked on) more recently than the multiple lookup name.
@@ -72,38 +82,59 @@ public class ControlPane extends Observable implements ActionListener, FocusList
   private IndexLookupPane massLookup;
 
   /**
-   * The panel containing all buttons related to information queries. Pressing a button
-   * in this panel will cause information to be fetched based on which button was pressed
-   * and which lookup pane was most recently selected. The same lookup pane will then
-   * display the output.
+   * The panel containing all buttons related to information queries. Options are
+   * provided for searches, specifying information in the output, and maintenance.
    * 
-   * <p>Contains buttons to search for the position in the index file, the grade, or the
-   * homeform of all names in the selected lookup pane.
+   * <p>Search button: Perform a search using the current parameters.
+   * <br>Report buttons: Choose what information to display for subsequent searches.
+   * <br>Parameters button: Opens a menu to set search parameters, controlling which
+   * lines of output are kept.
+   * <br>Clear button: Removes all text from all input and output text spaces.
    */
   private JPanel buttonPane;
 
   /**
-   * The button set to trigger operations to look up the index position of a set of people.
-   * This option is useful for determining which names are found at an index, and which are
-   * not; the ones that are not are assumed to be misspelled.
+   * The button that identifies whether a student's grade should be included in the output
+   * of the next search operation.
    */
-  private JButton spellcheck = new JButton("Spellcheck");
+  private JRadioButton reportGrade = new JRadioButton("Report Grade");
 
   /**
-   * The button set to trigger operations to look up the grade of a set of people.
+   * The button that identifies whether homeform room should be included in the output
+   * of the next search operation.
    */
-  private JButton grade = new JButton("Search Grade");
-
+  private JRadioButton reportHomeform = new JRadioButton("Report Homeform");
+  
   /**
-   * The button set to trigger operations to look up the homeform room of a set of people.
+   * The button that resets both input and both output text spaces to contain no text.
    */
-  private JButton homeform = new JButton("Search Homeform");
+  private JButton clear = new JButton("Clear Text Frames");
+  
+  /**
+   * The button that launches a search using the text from the previously selected input
+   * space, with the currently selected parameters.
+   */
+  private JButton search = new JButton("Search");
+  
+  /**
+   * The button to access the parameters window, from which the user can place
+   * restrictions on which lines of output are kept and displayed from subsequent
+   * searches.
+   */
+  private JButton params = new JButton("Set Parameters");
+  
+  /**
+   * The functional controller for the parameters window, maintaining the window and
+   * providing an interface through which the control pane can easily access the
+   * current parameter specification.
+   */
+  private SearchParametersFrame getParams;
 
   /**
    * The lookup pane that was most recently selected; the lookup pane to draw names from
    * and output results when a lookup-related button is pressed.
    */
-  private IndexLookupPane selected = null;
+  private IndexLookupPane selected;
 
   /**
    * Initialize a new <code>ControlPane</code> by setting up all components inside.
@@ -116,6 +147,7 @@ public class ControlPane extends Observable implements ActionListener, FocusList
     wholePane.setLayout(new BoxLayout(wholePane, BoxLayout.PAGE_AXIS));
     singleLookup = new SingleLookupPane();
     massLookup = new MassLookupPane();
+    selected = massLookup;
     
     wholePane.add(massLookup);
     wholePane.add(Box.createVerticalStrut(5));
@@ -123,20 +155,49 @@ public class ControlPane extends Observable implements ActionListener, FocusList
     wholePane.add(Box.createVerticalStrut(5));
 
     buttonPane = new JPanel();
-    buttonPane.setLayout(new GridLayout(1, 0));
-    buttonPane.add(spellcheck);
-    buttonPane.add(grade);
-    buttonPane.add(homeform);
+    SpringLayout buttonsLayout = new SpringLayout();
+    buttonPane.setLayout(buttonsLayout);
+    buttonPane.add(search);
+    buttonsLayout.putConstraint(SpringLayout.WEST, search, 0, SpringLayout.WEST, buttonPane);
+    buttonsLayout.putConstraint(SpringLayout.NORTH, search, 0, SpringLayout.NORTH, buttonPane);
+    buttonsLayout.putConstraint(SpringLayout.SOUTH, search, 0, SpringLayout.SOUTH, buttonPane);
+    buttonsLayout.putConstraint(SpringLayout.EAST, search, 165, SpringLayout.WEST, buttonPane);
+    
+    buttonPane.add(reportGrade);
+    buttonsLayout.putConstraint(SpringLayout.WEST, reportGrade, 2, SpringLayout.EAST, search);
+    buttonPane.add(reportHomeform);
+    buttonsLayout.putConstraint(SpringLayout.WEST, reportHomeform, 2, SpringLayout.EAST, search);
+    buttonsLayout.putConstraint(SpringLayout.NORTH, reportGrade, -2, SpringLayout.NORTH, buttonPane);
+    buttonsLayout.putConstraint(SpringLayout.SOUTH, reportHomeform, 1, SpringLayout.SOUTH, buttonPane);
+    
+    buttonPane.add(clear);
+    buttonsLayout.putConstraint(SpringLayout.EAST, clear, 0, SpringLayout.EAST, buttonPane);
+    buttonsLayout.putConstraint(SpringLayout.NORTH, clear, 0, SpringLayout.NORTH, buttonPane);
+    buttonsLayout.putConstraint(SpringLayout.SOUTH, clear, 0, SpringLayout.SOUTH, buttonPane);
+    
+    buttonPane.add(params);
+    buttonsLayout.putConstraint(SpringLayout.EAST, params, -5, SpringLayout.WEST, clear);
+    buttonsLayout.putConstraint(SpringLayout.NORTH, params, 0, SpringLayout.NORTH, buttonPane);
+    buttonsLayout.putConstraint(SpringLayout.SOUTH, params, 0, SpringLayout.SOUTH, buttonPane);
+    
+    int buttonsWidth = wholePane.getPreferredSize().width;
+    int buttonsHeight = (int)(clear.getPreferredSize().height * 1.5);
+    Dimension buttonsSize = new Dimension();
+    buttonsSize.setSize(buttonsWidth, buttonsHeight);
+
+    buttonPane.setPreferredSize(buttonsSize);
     
     wholePane.add(buttonPane);
     
-    spellcheck.addActionListener(this);
-    grade.addActionListener(this);
-    homeform.addActionListener(this);
+    clear.addActionListener(this);
+    params.addActionListener(this);
+    search.addActionListener(this);
     
     // Focus listeners are used to determine which lookup pane was last selected.
     singleLookup.addFocusListener(this);
     massLookup.addFocusListener(this);
+    
+    getParams = new SearchParametersFrame();
   }
 
   /**
@@ -160,29 +221,37 @@ public class ControlPane extends Observable implements ActionListener, FocusList
   public void displayLines(String[][] results) {
     selected.display(results);
   }
+  
+  private void clearTextPanes() {
+    singleLookup.display(null);
+    massLookup.display(null);
+  }
 
   @Override
   public void actionPerformed(ActionEvent event) {
     JButton buttonPressed = (JButton)event.getSource();
-    String selectedText = selected.getInputText();
+      
+    if (buttonPressed == clear) {
+      clearTextPanes();
+    } else if (buttonPressed == params) {
+      JFrame paramsFrame = getParams.getParametersFrame();
+      paramsFrame.setLocation(300, 300);
+      paramsFrame.setVisible(true);
+    } else if (buttonPressed == search) {
+      String selectedText = selected.getInputText();
 
-    if (selectedText.length() > 0) {
-      int queryStamp = -1;
-      // Interpret the desired information by the button pressed
-      if (buttonPressed == spellcheck) {
-        queryStamp = spellcheckStamp;
-      } else if (buttonPressed == grade) {
-        queryStamp = gradeLookupStamp;
-      } else if (buttonPressed == homeform) {
-        queryStamp = homeformLookupStamp;
-      }
-
-      /* Send a request to the system to access the requested information.
-         Once the request is processed, the results will be sent back from outside. */
-      if (queryStamp != -1) {
-        RequestEvent query = new RequestEvent(queryStamp, selectedText);
+      if (selectedText != null) {
+        boolean[] params = getParams.getSearchParameters(3);
+          
+        params[1] = reportGrade.isSelected();
+        params[2] = reportHomeform.isSelected();
+        params[0] = !(reportGrade.isSelected() || reportHomeform.isSelected());
+          
+        RequestEvent query = new RequestEvent(lookupStamp, params, selectedText);
+      
+        /* Send a request to the system to access the requested information.
+           Once the request is processed, the results will be sent back from outside. */
         setChanged();
-        // Send the query using Observable.
         notifyObservers(query);
       }
     }
@@ -197,5 +266,9 @@ public class ControlPane extends Observable implements ActionListener, FocusList
 
   @Override
   public void focusLost(FocusEvent arg) {
+  }
+
+  public void loadHomeformList(List<String>[] homeforms) {
+    getParams.loadHomeformList(homeforms);
   }
 }

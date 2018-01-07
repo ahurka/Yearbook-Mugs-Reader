@@ -1,4 +1,5 @@
 import java.awt.Container;
+import java.util.List;
 import java.util.Observer;
 
 import javax.swing.Box;
@@ -52,7 +53,7 @@ public class MugsReaderFrame extends JFrame {
    *        <code>true</code> if the index in use is set to manual priority
    */
   public MugsReaderFrame(String sourceIndex, boolean sourceManual) {
-    setTitle("Bloor CI Mugs Reader v1.0");
+    setTitle("Bloor CI Mugs Reader v2.1");
     setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
     setResizable(false);
     
@@ -71,12 +72,40 @@ public class MugsReaderFrame extends JFrame {
     contentPane.add(control.getContentPanel());
   }
   
+  /**
+   * Show an error panel to the user upon error.
+   * 
+   * @param errorText Text to display on the error panel
+   */
   public void displayErrorMessage(String errorText) {
-    JOptionPane.showMessageDialog(null, errorText, "File Not Found", JOptionPane.ERROR_MESSAGE);
+    JOptionPane.showMessageDialog(null, errorText, "File Not Found",
+    		                      JOptionPane.ERROR_MESSAGE);
   }
   
+  /**
+   * Cause an <code>Observer</code> type to listen to all the components of this
+   * frame that communicate via the <code>Observable</code> abstract class.
+   * 
+   * @param observer
+   *        The object listening to observable components of this frame.
+   */
   public void addObservers(Observer observer) {
     control.addObserver(observer);
     indexReset.addObserver(observer);
+  }
+  
+  /**
+   * Update the list of homeforms that is used in applying search parameters for
+   * parametrized queries. The outside scope must also keep a copy of this list
+   * in order to understand parameter flags sent in a query. That is, the homeform
+   * list for the <code>MugsReaderFrame</code> must be the same as that of the
+   * external system.
+   * 
+   * @param homeforms
+   *        An array of lists of homeforms, each containing a different grade or
+   *        type of homeform.
+   */
+  public void setHomeformList(List<String>[] homeforms) {
+    control.loadHomeformList(homeforms);
   }
 }

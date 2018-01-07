@@ -23,4 +23,14 @@ public class SingleLookupPane extends IndexLookupPane {
     inputField.setFont(textDisplayFont);
     return inputField;
   }
+  
+  @Override
+  public String getInputText() {
+    String realText = super.getInputText();
+    if (realText.equals("")) {
+      return null;
+    } else {
+      return realText;
+    }
+  }
 }

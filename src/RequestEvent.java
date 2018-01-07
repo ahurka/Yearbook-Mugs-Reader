@@ -1,3 +1,4 @@
+
 /**
  * An event in progress. Usually represents a user request to access/change the model of
  * an application.
@@ -10,37 +11,53 @@
  * object can be retrieved with getter methods.
  */
 public class RequestEvent {
+
   /**
    * A stamp applied to this request for its purpose to be identified by receivers.
    */
-  private int requestType;
+  private byte requestType;
 
   /**
-   * The object of this event.
+   * A set of additional parameter flags, the purpose of which depends on the operation.
+   * An operation may choose to not use the flags, in which case it should set them to
+   * null or an array of length zero.
+   * 
+   * <p>Search operations use these flags to communicate which pieces of output are
+   * retained and which are lost. File manipulation operations currently do not use
+   * any additional parameters, although that may change.
+   */
+  private boolean[] requestParams;
+  
+  /**
+   * The object of this event, be it the name of a file or a number of people's names.
    */
   private String requestData;
 
   /**
    * Initialize a new <code>RequestEvent</code>, representing an event of a type specified
-   * by <code>type</code> that is to be applied to the object specified by <code>data</code>.
+   * by <code>type</code> that is to be applied to the object specified by <code>data</code>,
+   * with additional event parameters according to <code>parameters</code>.
    * 
    * @param type
    *        A signifier of the type of event in progress
+   * @param parameters
+   *        A series of boolean flags that are used as additional settings in a request
    * @param data
    *        The object of the event
    */
-  public RequestEvent(int type, String data) {
+  public RequestEvent(byte type, boolean[] parameters, String data) {
     requestType = type;
+    requestParams = parameters;
     requestData = data;
+    
   }
-
-  /**
-   * Returns the type stamp applied to this request.
-   * 
-   * @return The request's stamp
-   */
-  public int getType() {
+  
+  public byte getType() {
     return requestType;
+  }
+  
+  public boolean[] getParams() {
+    return requestParams;
   }
 
   /**

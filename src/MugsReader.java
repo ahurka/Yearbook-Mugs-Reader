@@ -87,12 +87,10 @@ public class MugsReader extends WindowAdapter implements Observer, MugsEventStam
    */
   @SuppressWarnings("unused")
   public static void main(String[] args) {
-    System.out.println("Running folder: " + System.getProperty("user.dir"));
     if (args.length == 0) {
-      MugsReader first = new MugsReader();
+      MugsReader me = new MugsReader(); 
     } else {
       // TODO add implementation for run with args.
-      // Ask Mr. Mario about fork(?)?
 
       // For now only the first index in <args> is used.
       String fileSourceName = args[0];
@@ -117,7 +115,8 @@ public class MugsReader extends WindowAdapter implements Observer, MugsEventStam
       index = new IndexInterpreter();
       hopeYouEnjoy = new MugsReaderFrame("", false);
     }
-  
+
+    hopeYouEnjoy.setHomeformList(index.getHomeforms());
     hopeYouEnjoy.addObservers(this); 
     hopeYouEnjoy.addWindowListener(this);
     hopeYouEnjoy.setLocation(100, 100);
@@ -143,7 +142,8 @@ public class MugsReader extends WindowAdapter implements Observer, MugsEventStam
       savedIndices.add(index, false);
     }
     hopeYouEnjoy = new MugsReaderFrame(initialFileName, savedIndices.isManual(initialFileName));
-    
+    hopeYouEnjoy.setHomeformList(index.getHomeforms());
+
     hopeYouEnjoy.addObservers(this); 
     hopeYouEnjoy.addWindowListener(this);
     hopeYouEnjoy.setLocation(200, 200);
@@ -189,14 +189,21 @@ public class MugsReader extends WindowAdapter implements Observer, MugsEventStam
    */
   private boolean isSearchOperation(RequestEvent query) {
     int stamp = query.getType();
-    return stamp == spellcheckStamp
-           || stamp == gradeLookupStamp
-           || stamp == homeformLookupStamp;
+    return stamp == lookupStamp;
   }
   
+  /**
+   * Read a new index file and parse it into usable format. This file, if it is
+   * successfully read, becomes the index that is operated on and the dataset
+   * that is queried when a search operations is performed.
+   * 
+   * @param fileName
+   *        The name of the new index file being loaded
+   */
   private void getNewIndex(String fileName) {
     try {
       index = new IndexInterpreter(fileIo.readIndex(fileName), fileName);
+      hopeYouEnjoy.setHomeformList(index.getHomeforms());
     } catch (IOException err) {
       hopeYouEnjoy.displayErrorMessage(err.getMessage());
     }
@@ -204,7 +211,6 @@ public class MugsReader extends WindowAdapter implements Observer, MugsEventStam
 
   @Override
   public void update(Observable source, Object request) {
-    // Occurs when the user has 
     RequestEvent query = (RequestEvent)request;
     if (isSearchOperation(query)) {
       String[][] answer = index.execute(query);
@@ -222,6 +228,7 @@ public class MugsReader extends WindowAdapter implements Observer, MugsEventStam
       // The user wants to change to a new mugs index.
       if (savedIndices.contains(query.getData())) {
         index = savedIndices.get(query.getData());
+        hopeYouEnjoy.setHomeformList(index.getHomeforms());
       } else {
         String name = query.getData();
         getNewIndex(name);
