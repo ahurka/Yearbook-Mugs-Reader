@@ -46,6 +46,11 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
    * The non-editable text field that contains the output of user input queries.
    */
   private JTextComponent outputField;
+  
+  /**
+   * 
+   */
+  private String queryString;
 
   /**
    * The scrolling pane containing the input text field.
@@ -76,6 +81,7 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
    */
   protected IndexLookupPane() {
     setLayout(new GridLayout(1, 1));
+    queryString = "";
 
     inputField = getTextComponent();
     outputField = getTextComponent();
@@ -108,6 +114,15 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
    */
   protected abstract JTextComponent getTextComponent();
 
+  /**
+   * 
+   * 
+   * @return
+   */
+  protected String getQueryString() {
+    return queryString;
+  }
+  
   /**
    * Synchronize the scroll bars on the input and output scroll panes such that both move
    * in the same way whenever one is dragged. For this to occur, the two text fields must
@@ -157,6 +172,7 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
          When this happens, the input and output text fields may become different heights,
          which makes synchronized scroll bars cut off lines of text in the shorter text field.
          Scroll bars are desynchronized on these events to prevent cut off text. */
+      queryString = inputField.getText();
       unmatchScrollBars();
     }
   }
@@ -165,6 +181,7 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
   public void removeUpdate(DocumentEvent evt) {
     if (!activeSuppress) {
       // Same response as for insertions. See method body above.
+      queryString = inputField.getText();
       unmatchScrollBars();
     }
   }
@@ -175,7 +192,7 @@ public abstract class IndexLookupPane extends JPanel implements DocumentListener
    * @return User-input text
    */
   public String getInputText() {
-    return inputField.getText();
+    return queryString;
   }
 
   /**

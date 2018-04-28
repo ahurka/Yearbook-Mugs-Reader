@@ -239,6 +239,7 @@ public class ControlPane extends Observable implements ActionListener, FocusList
       paramsFrame.setVisible(true);
     } else if (buttonPressed == search) {
       String selectedText = selected.getInputText();
+//      System.out.println("Searching " + selectedText);
 
       if (selectedText != null) {
         boolean[] params = getParams.getSearchParameters(3);
